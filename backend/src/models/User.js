@@ -1,0 +1,71 @@
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/database');
+
+const User = sequelize.define('User', {
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true,
+  },
+  name: {
+    type: DataTypes.STRING(100),
+    allowNull: false,
+  },
+  email: {
+    type: DataTypes.STRING(150),
+    allowNull: false,
+    unique: true,
+    validate: { isEmail: true },
+  },
+  password: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  role: {
+    type: DataTypes.ENUM('admin', 'manager', 'executor'),
+    defaultValue: 'executor',
+  },
+  position: {
+    type: DataTypes.STRING(100),
+  },
+  phone: {
+    type: DataTypes.STRING(20),
+  },
+  employeeType: {
+    type: DataTypes.ENUM('staff', 'contractor', 'freelancer'),
+    defaultValue: 'staff',
+    field: 'employee_type',
+  },
+  rateType: {
+    type: DataTypes.ENUM('hourly', 'fixed'),
+    field: 'rate_type',
+  },
+  rate: {
+    type: DataTypes.DECIMAL(10, 2),
+  },
+  startDate: {
+    type: DataTypes.DATEONLY,
+    field: 'start_date',
+  },
+  isActive: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
+    field: 'is_active',
+  },
+  avatar: {
+    type: DataTypes.STRING,
+  },
+  telegramChatId: {
+    type: DataTypes.STRING,
+    field: 'telegram_chat_id',
+  },
+  googleRefreshToken: {
+    type: DataTypes.TEXT,
+    field: 'google_refresh_token',
+  },
+}, {
+  tableName: 'users',
+  underscored: true,
+});
+
+module.exports = User;
