@@ -25,10 +25,7 @@ services:
       - key: JWT_EXPIRES_IN
         value: 7d
       - key: FRONTEND_URL
-        fromService:
-          name: crm-studio-frontend
-          type: web
-          property: url
+        sync: false
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT
