@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, UserPlus, Mail, Phone, Clock } from 'lucide-react';
+import { Plus, UserPlus, Mail, Phone, Clock, Shield, ShieldCheck, ShieldAlert, UserX } from 'lucide-react';
 import api from '../../api/axios';
 import Badge from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
@@ -7,12 +7,15 @@ import {
   EMPLOYEE_TYPES, ROLES, formatDate, formatSeconds,
 } from '../../utils/constants';
 import toast from 'react-hot-toast';
+import useAuthStore from '../../store/authStore';
 
 export default function TeamPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const currentUser = useAuthStore((s) => s.user);
+  const isAdmin = currentUser?.role === 'admin';
 
   const fetchUsers = async () => {
     try {
@@ -27,6 +30,29 @@ export default function TeamPage() {
 
   useEffect(() => { fetchUsers(); }, []);
 
+  const handleRoleChange = async (userId, newRole) => {
+    try {
+      const { data } = await api.patch(`/users/${userId}/role`, { role: newRole });
+      toast.success(`Роль изменена на "${roleLabels[newRole]}"`);
+      setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, ...data } : u)));
+      setSelectedUser((prev) => (prev && prev.id === userId ? { ...prev, ...data } : prev));
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Не удалось сменить роль');
+    }
+  };
+
+  const handleDeactivate = async (userId) => {
+    if (!window.confirm('Вы уверены, что хотите деактивировать этого пользователя?')) return;
+    try {
+      await api.patch(`/users/${userId}/deactivate`);
+      toast.success('Пользователь деактивирован');
+      setSelectedUser(null);
+      fetchUsers();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Ошибка');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -38,6 +64,7 @@ export default function TeamPage() {
   const roleColors = { admin: 'red', manager: 'blue', executor: 'green' };
   const roleLabels = { admin: 'Администратор', manager: 'Менеджер', executor: 'Исполнитель' };
   const typeLabels = { staff: 'Штатный', contractor: 'Подрядчик', freelancer: 'Фрилансер' };
+  const roleIcons = { admin: ShieldAlert, manager: ShieldCheck, executor: Shield };
 
   return (
     <div className="space-y-6">
@@ -113,7 +140,7 @@ export default function TeamPage() {
       {/* Модалка карточки сотрудника */}
       <Modal open={!!selectedUser} onClose={() => setSelectedUser(null)} title="Карточка сотрудника">
         {selectedUser && (
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div className="flex items-center gap-3">
               <div className="w-14 h-14 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center text-xl font-bold">
                 {selectedUser.name.charAt(0).toUpperCase()}
@@ -129,14 +156,65 @@ export default function TeamPage() {
                 <p className="text-sm text-gray-700">{selectedUser.email}</p>
               </div>
               <div>
-                <span className="text-xs text-gray-400">Роль</span>
-                <p className="text-sm text-gray-700">{roleLabels[selectedUser.role]}</p>
-              </div>
-              <div>
                 <span className="text-xs text-gray-400">Тип</span>
                 <p className="text-sm text-gray-700">{typeLabels[selectedUser.employeeType] || 'Штатный'}</p>
               </div>
             </div>
+
+            {/* Секция управления ролью */}
+            <div className="pt-4 border-t border-gray-200">
+              <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Роль</span>
+              {isAdmin && selectedUser.id !== currentUser.id ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {ROLES.map((r) => {
+                    const RoleIcon = roleIcons[r.value];
+                    const isActive = selectedUser.role === r.value;
+                    const colorMap = {
+                      admin: isActive
+                        ? 'bg-red-100 border-red-400 text-red-700 shadow-sm'
+                        : 'border-gray-200 text-gray-500 hover:border-red-300 hover:bg-red-50 hover:text-red-600',
+                      manager: isActive
+                        ? 'bg-blue-100 border-blue-400 text-blue-700 shadow-sm'
+                        : 'border-gray-200 text-gray-500 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600',
+                      executor: isActive
+                        ? 'bg-green-100 border-green-400 text-green-700 shadow-sm'
+                        : 'border-gray-200 text-gray-500 hover:border-green-300 hover:bg-green-50 hover:text-green-600',
+                    };
+                    return (
+                      <button
+                        key={r.value}
+                        onClick={() => handleRoleChange(selectedUser.id, r.value)}
+                        disabled={isActive}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border transition ${colorMap[r.value]} ${isActive ? 'cursor-default' : 'cursor-pointer'}`}
+                      >
+                        <RoleIcon className="w-3.5 h-3.5" />
+                        {r.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="mt-2">
+                  <Badge variant={roleColors[selectedUser.role]}>{roleLabels[selectedUser.role]}</Badge>
+                  {selectedUser.id === currentUser.id && (
+                    <span className="ml-2 text-xs text-gray-400">(вы)</span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Кнопка деактивации (только для admin, не для себя) */}
+            {isAdmin && selectedUser.id !== currentUser.id && (
+              <div className="pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => handleDeactivate(selectedUser.id)}
+                  className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition font-medium"
+                >
+                  <UserX className="w-4 h-4" />
+                  Деактивировать аккаунт
+                </button>
+              </div>
+            )}
           </div>
         )}
       </Modal>
