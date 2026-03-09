@@ -52,6 +52,17 @@ router.put('/users/:id', auth, async (req, res) => {
   res.json(user);
 });
 
+// Промоут текущего пользователя в admin если нет ни одного admin
+router.post('/users/promote-admin', auth, async (req, res) => {
+  const adminCount = await User.count({ where: { role: 'admin' } });
+  if (adminCount > 0) {
+    return res.status(400).json({ error: 'Admin уже существует' });
+  }
+  const user = await User.findByPk(req.user.id);
+  await user.update({ role: 'admin' });
+  res.json({ message: 'Вы стали admin', role: 'admin' });
+});
+
 router.patch('/users/:id/deactivate', auth, requireRole('admin'), async (req, res) => {
   const user = await User.findByPk(req.params.id);
   if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
