@@ -70,6 +70,9 @@ Expense.belongsTo(Project, { foreignKey: 'project_id', as: 'project' });
 // Связи Notification
 Notification.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
+// Связи ActivityLog
+ActivityLog.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
 // Связи ProjectMember
 User.belongsToMany(Project, {
   through: ProjectMember,

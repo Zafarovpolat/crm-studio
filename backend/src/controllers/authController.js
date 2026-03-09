@@ -26,12 +26,16 @@ const register = async (req, res) => {
       return res.status(400).json({ error: 'Email уже используется' });
     }
 
+    // Первый пользователь автоматически становится admin
+    const userCount = await User.count();
+    const assignedRole = userCount === 0 ? 'admin' : (role || 'executor');
+
     const hash = await bcrypt.hash(password, 12);
     const user = await User.create({
       name,
       email,
       password: hash,
-      role: role || 'executor',
+      role: assignedRole,
       position,
     });
 
